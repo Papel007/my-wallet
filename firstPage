@@ -1,0 +1,535 @@
+"use client";
+import React, { useMemo, useState } from "react";
+import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  ArrowRight,
+  ShieldCheck,
+  Wallet2,
+  ChartPie,
+  Sparkles,
+  Globe2,
+  Zap,
+  Lock,
+  BarChart3,
+  GitBranch,
+  Network,
+  Coins,
+  Layers,
+  ExternalLink,
+} from "lucide-react";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+import AppPage from "./appPage/page";
+
+// === Quick notes for you (the developer) ===
+// • This is a single-file React landing page with Tailwind classes.
+// • No external design system required; it will render cleanly in most React+Tailwind setups.
+// • Swap the placeholder copy/links with your own. Adjust colors in the utility classes.
+// • The small "Connect Wallet" modal is a stub; wire it to your preferred wallet SDK.
+// • Animation: framer-motion. Icons: lucide-react. Chart: recharts.
+// • Security callouts are included in content blocks for credibility.
+
+const CHAINS = [
+  { name: "Ethereum", short: "ETH" },
+  { name: "BNB Chain", short: "BNB" },
+  { name: "Polygon", short: "POL" },
+  { name: "Arbitrum", short: "ARB" },
+  { name: "Base", short: "BASE" },
+  { name: "Optimism", short: "OP" },
+  { name: "Solana", short: "SOL" },
+];
+
+const portfolioSeed = [
+  { name: "ETH", value: 46.5 },
+  { name: "USDC", value: 21.0 },
+  { name: "WBTC", value: 12.5 },
+  { name: "ARB", value: 8.0 },
+  { name: "MATIC", value: 6.5 },
+  { name: "Others", value: 5.5 },
+];
+
+const gradients = {
+  backdrop:
+    "bg-[radial-gradient(1200px_600px_at_70%_-10%,rgba(59,130,246,0.18),transparent),radial-gradient(1000px_420px_at_-10%_0%,rgba(168,85,247,0.18),transparent)]",
+};
+
+function Logo() {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="relative">
+        <div className="h-8 w-8 rounded-2xl bg-gradient-to-br from-indigo-500 via-blue-500 to-cyan-400 shadow-lg shadow-blue-500/30" />
+        <div className="absolute inset-0 -z-10 blur-lg bg-indigo-500/30 rounded-2xl" />
+      </div>
+      <span className="font-bold tracking-tight text-white text-lg">MultiToken</span>
+    </div>
+  );
+}
+
+function NavBar({ onLaunch }: { onLaunch: () => void }) {
+  return (
+    <header className="sticky top-0 z-40 w-full border-b border-white/10 backdrop-blur supports-[backdrop-filter]:bg-black/30">
+      <div className="mx-auto max-w-7xl px-4 py-3">
+        <div className="flex items-center justify-between">
+          <Logo />
+          <nav className="hidden md:flex items-center gap-6 text-sm text-white/80">
+            <a href="#chains" className="hover:text-white transition">Chains</a>
+            <a href="#security" className="hover:text-white transition">Security</a>
+            <a href="#faq" className="hover:text-white transition">FAQ</a>
+          </nav>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onLaunch}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white text-black font-medium hover:opacity-90 active:opacity-80"
+            >
+              CONNECT <ArrowRight className="h-4 w-4" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function Hero({ onLaunch }: { onLaunch: () => void }) {
+  return (
+    <section className={`relative ${gradients.backdrop}`}>
+      <div className="absolute inset-0 pointer-events-none" aria-hidden>
+        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-b from-indigo-500/10 to-transparent" />
+      </div>
+      <div className="mx-auto max-w-7xl px-4 pt-16 pb-12 md:pb-20">
+        <motion.div
+          initial={{ opacity: 0, y: 24 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6 }}
+          className="grid md:grid-cols-2 gap-10 items-center"
+        >
+          <div>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-3 py-1 text-sm text-white/80 mb-5">
+              <Sparkles className="h-4 w-4" /> New: Unified multi-chain wallet experience
+            </div>
+            <h1 className="text-4xl md:text-6xl font-bold tracking-tight text-white">
+              Manage *All* your crypto in one elegant wallet
+            </h1>
+            <p className="mt-4 text-lg text-white/70">
+              MultiToken brings assets, NFTs, swaps, bridges, and analytics together.
+              Non‑custodial. Gas‑aware. Built for speed.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center gap-3">
+              <button
+                onClick={onLaunch}
+                className="inline-flex items-center gap-2 rounded-2xl bg-white px-6 py-3 text-black font-semibold hover:opacity-90"
+              >
+                CONNECT <ArrowRight className="h-4 w-4" />
+              </button>
+              <Link
+                href="/appPage"
+                className="inline-flex items-center gap-2 rounded-2xl border border-white/15 px-6 py-3 text-white/90 hover:bg-white/5"
+              >
+                CONNECT MANUALLY <ExternalLink className="h-4 w-4" />
+              </Link>
+            </div>
+            <dl className="mt-10 grid grid-cols-3 gap-4 max-w-xl">
+              {[
+                { k: "+150", v: "Assets supported" },
+                { k: "+8", v: "Chains live" },
+                { k: "0x", v: "Non‑custodial" },
+              ].map((s) => (
+                <div key={s.v} className="rounded-2xl border border-white/10 bg-white/5 p-4">
+                  <dt className="text-2xl font-bold text-white">{s.k}</dt>
+                  <dd className="text-xs text-white/70">{s.v}</dd>
+                </div>
+              ))}
+            </dl>
+          </div>
+
+          <motion.div
+            initial={{ opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.7, delay: 0.1 }}
+            className="w-full"
+          >
+            <WalletPreview />
+          </motion.div>
+        </motion.div>
+      </div>
+    </section>
+  );
+}
+
+function WalletPreview() {
+  const COLORS = ["#ffffff", "#e5e7eb", "#a5b4fc", "#7dd3fc", "#fca5a5", "#fde68a"];
+  return (
+    <div className="rounded-3xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-5 shadow-2xl shadow-indigo-500/10">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-white/80">
+          <Wallet2 className="h-5 w-5" />
+          <span className="text-sm">Demo Portfolio</span>
+        </div>
+        <span className="text-xs text-white/60">0xA1...f39C</span>
+      </div>
+      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+          <div className="flex items-center gap-2 text-white/80 mb-2">
+            <ChartPie className="h-4 w-4" /> Allocation
+          </div>
+          <div className="h-44">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie data={portfolioSeed} dataKey="value" nameKey="name" outerRadius={70}>
+                  {portfolioSeed.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip cursor={false} />
+              </PieChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+        <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+          <div className="flex items-center gap-2 text-white/80 mb-2">
+            <Coins className="h-4 w-4" /> Balances
+          </div>
+          <ul className="space-y-3">
+            {[
+              { t: "ETH", a: 1.2456, v: "$4,420" },
+              { t: "USDC", a: 2100, v: "$2,100" },
+              { t: "WBTC", a: 0.18, v: "$12,000" },
+              { t: "ARB", a: 932, v: "$1,080" },
+            ].map((x) => (
+              <li key={x.t} className="flex items-center justify-between text-white/80">
+                <div className="flex items-center gap-2">
+                  <span className="h-2.5 w-2.5 rounded-full bg-white/70" />
+                  <span className="font-medium">{x.t}</span>
+                </div>
+                <div className="text-sm">
+                  <span className="text-white/70 mr-2">{x.a}</span>
+                  <span className="text-white/40">{x.v}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-4 grid grid-cols-2 gap-3">
+            <button className="rounded-xl bg-white/90 text-black py-2 font-medium hover:bg-white">Send</button>
+            <button className="rounded-xl border border-white/15 py-2 text-white/90 hover:bg-white/10">Swap</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+type FeatureProps = {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  desc: string;
+  badge?: string;
+};
+
+function Feature({ icon: Icon, title, desc, badge }: FeatureProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 14 }}
+      whileInView={{ opacity: 1, y: 0 }}
+      viewport={{ once: true, margin: "-80px" }}
+      transition={{ duration: 0.5 }}
+      className="rounded-2xl border border-white/10 bg-white/5 p-5"
+    >
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <Icon className="h-5 w-5 text-white" />
+          <h3 className="text-white font-semibold">{title}</h3>
+        </div>
+        {badge && (
+          <span className="text-[10px] uppercase tracking-wide rounded-full border border-white/15 px-2 py-0.5 text-white/70">
+            {badge}
+          </span>
+        )}
+      </div>
+      <p className="text-white/70 text-sm leading-6">{desc}</p>
+    </motion.div>
+  );
+}
+
+function Features() {
+  const data = [
+    {
+      icon: Globe2,
+      title: "Multi‑Chain by Design",
+      desc:
+        "Track and transact across Ethereum, L2s, and sidechains without tab‑hopping. One unified address book, one gas view.",
+      badge: "Cross‑chain",
+    },
+    {
+      icon: Zap,
+      title: "Fast Swaps & Bridges",
+      desc:
+        "Optimized routing taps top DEXes and bridge providers with clear slippage and fee visibility.",
+      badge: "Routing",
+    },
+    {
+      icon: BarChart3,
+      title: "Portfolio Intelligence",
+      desc:
+        "Real‑time PnL, cost basis, and allocations with exportable tax CSVs.",
+      badge: "Analytics",
+    },
+    {
+      icon: Layers,
+      title: "NFTs & Tokens Together",
+      desc:
+        "View, filter, and transfer NFTs side‑by‑side with tokens. No more separate apps.",
+      badge: "Collectibles",
+    },
+    {
+      icon: ShieldCheck,
+      title: "Non‑Custodial Security",
+      desc:
+        "Keys stay with you. Hardware wallet friendly with human‑readable transaction previews.",
+      badge: "Security",
+    },
+    {
+      icon: Lock,
+      title: "Privacy‑First",
+      desc:
+        "No invasive trackers. Optional RPC privacy relays and on‑device balance caching.",
+      badge: "Privacy",
+    },
+  ];
+
+  return (
+    <section id="features" className="mx-auto max-w-7xl px-4 py-16">
+      <div className="mb-10">
+        <h2 className="text-3xl md:text-4xl font-bold text-white">Everything you expect—
+          <span className="text-white/60"> plus a few superpowers</span>
+        </h2>
+        <p className="text-white/70 mt-2 max-w-2xl">
+          Designed for speed, clarity, and safety. Built for daily use from day 1.
+        </p>
+      </div>
+      <div className="grid md:grid-cols-3 gap-5">
+        {data.map((f) => (
+          <Feature key={f.title} {...f} />
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Chains() {
+  return (
+    <section id="chains" className="mx-auto max-w-7xl px-4 py-16">
+      <div className="mb-8 flex items-end justify-between">
+        <div>
+          <h2 className="text-3xl font-bold text-white">Supported Networks</h2>
+          <p className="text-white/70 mt-2">Start on one chain, finish on another—seamlessly.</p>
+        </div>
+        <div className="hidden md:flex items-center gap-2 text-white/70">
+          <GitBranch className="h-4 w-4" />
+          <span className="text-sm">More rolling out soon</span>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-7 gap-3">
+        {CHAINS.map((c) => (
+          <div
+            key={c.name}
+            className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3 text-center"
+          >
+            <div className="text-white font-semibold">{c.short}</div>
+            <div className="text-xs text-white/60">{c.name}</div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Security() {
+  return (
+    <section id="security" className="mx-auto max-w-7xl px-4 py-16">
+      <div className="grid md:grid-cols-2 gap-8 items-start">
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="flex items-center gap-2 text-white mb-2">
+            <ShieldCheck className="h-5 w-5" />
+            <h3 className="text-xl font-semibold">Security commitments</h3>
+          </div>
+          <ul className="list-disc pl-4 space-y-2 text-white/70 text-sm">
+            <li>Non‑custodial by default; your keys, your crypto.</li>
+            <li>Human‑readable simulation for swaps, bridges, approvals.</li>
+            <li>Hardware wallet & multisig support for high‑value moves.</li>
+            <li>Strict permissions: no blanket token approvals required.</li>
+            <li>Open‑source core with continuous audits and public disclosures.</li>
+          </ul>
+        </div>
+        <div className="rounded-3xl border border-white/10 bg-white/5 p-6">
+          <div className="flex items-center gap-2 text-white mb-2">
+            <Lock className="h-5 w-5" />
+            <h3 className="text-xl font-semibold">Privacy & data handling</h3>
+          </div>
+          <ul className="list-disc pl-4 space-y-2 text-white/70 text-sm">
+            <li>No invasive analytics; opt‑in telemetry only.</li>
+            <li>Optional privacy RPC relays to mask IP/meta‑data.</li>
+            <li>On‑device balance caching; no central servers required.</li>
+            <li>Clear, revocable consent for notifications and emails.</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FAQ() {
+  const items = [
+    {
+      q: "Is this non‑custodial?",
+      a: "Yes. Private keys remain with you. We don’t have access to your funds.",
+    },
+    {
+      q: "Which wallets can I use?",
+      a: "Any EVM wallet via injected providers, WalletConnect, or hardware wallets. More coming soon.",
+    },
+    {
+      q: "What are the fees?",
+      a: "No wallet fees. Network gas and DEX/bridge provider fees apply and are shown transparently before you confirm.",
+    },
+    {
+      q: "Do you support NFTs?",
+      a: "Yes—browse, filter, and transfer collections directly in the wallet.",
+    },
+  ];
+  const [open, setOpen] = useState(0);
+  return (
+    <section id="faq" className="mx-auto max-w-3xl px-4 py-16">
+      <h2 className="text-3xl font-bold text-white mb-6">FAQ</h2>
+      <div className="space-y-3">
+        {items.map((it, i) => (
+          <div
+            key={it.q}
+            className="rounded-2xl border border-white/10 bg-white/5"
+          >
+            <button
+              className="w-full text-left px-5 py-4 flex items-center justify-between gap-4"
+              onClick={() => setOpen(open === i ? -1 : i)}
+            >
+              <span className="text-white font-medium">{it.q}</span>
+              <span className="text-white/60">{open === i ? "−" : "+"}</span>
+            </button>
+            {open === i && (
+              <div className="px-5 pb-5 text-white/70 text-sm">{it.a}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+function Footer() {
+  return (
+    <footer className="border-t border-white/10">
+      <div className="mx-auto max-w-7xl px-4 py-10 flex flex-col md:flex-row items-center justify-between gap-6">
+        <Logo />
+        <p className="text-white/60 text-sm">
+          © {new Date().getFullYear()} MultiToken Wallet — Built for the multi‑chain world.
+        </p>
+        <div className="flex items-center gap-4 text-white/70 text-sm">
+          <a href="#" className="hover:text-white">Terms</a>
+          <a href="#" className="hover:text-white">Privacy</a>
+          <a href="#" className="hover:text-white">Status</a>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  if (!open) return null;
+  const wallets = [
+    { name: "MetaMask" },
+    { name: "WalletConnect" },
+    { name: "Ledger" },
+    { name: "Rainbow" },
+  ];
+  return (
+    <div className="fixed inset-0 z-50 grid place-items-center">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-[92%] max-w-md rounded-2xl border border-white/10 bg-gradient-to-b from-white/10 to-white/5 p-5">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2 text-white">
+            <Network className="h-5 w-5" />
+            <h3 className="font-semibold">Connect a wallet</h3>
+          </div>
+          <button onClick={onClose} className="text-white/60 hover:text-white">✕</button>
+        </div>
+        <div className="space-y-2">
+          {wallets.map((w) => (
+            <button
+              key={w.name}
+              onClick={() => alert(`${w.name} flow stub — wire your SDK here`)}
+              className="w-full text-left rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/90 hover:bg-white/10"
+            >
+              {w.name}
+            </button>
+          ))}
+        </div>
+        <p className="text-xs text-white/50 mt-4">
+          By connecting, you agree to the Terms and acknowledge network fees apply.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+export default function App() {
+  const [modalOpen, setModalOpen] = useState(false);
+  const launch = () => setModalOpen(true);
+
+  return (
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
+      {/* Decorative gradient background */}
+      <div className="pointer-events-none fixed inset-0 -z-10 opacity-60 mix-blend-screen">
+        <div className="absolute -top-20 -right-24 h-[40rem] w-[40rem] rounded-full bg-gradient-to-br from-blue-500/20 to-indigo-500/10 blur-3xl" />
+        <div className="absolute -bottom-32 -left-20 h-[36rem] w-[36rem] rounded-full bg-gradient-to-tr from-purple-500/20 to-cyan-500/10 blur-3xl" />
+      </div>
+
+      <NavBar onLaunch={launch} />
+      <Hero onLaunch={launch} />
+      <Features />
+
+      <section id="demo" className="mx-auto max-w-7xl px-4 py-16">
+        <div className="grid md:grid-cols-2 gap-8 items-center">
+          <div>
+            <h2 className="text-3xl font-bold">Try the live demo widget</h2>
+            <p className="text-white/70 mt-2">
+              Connect a wallet (stubbed) to preview balances, send tokens, and test a
+              cross‑chain swap flow—all inside this page.
+            </p>
+            <ul className="mt-5 space-y-2 text-white/70 text-sm">
+              <li className="flex gap-2"><span>•</span> Human‑readable transaction previews</li>
+              <li className="flex gap-2"><span>•</span> Clear slippage & fee breakdown</li>
+              <li className="flex gap-2"><span>•</span> One‑click revoke approvals</li>
+            </ul>
+            <div className="mt-6 flex gap-3">
+              <button onClick={launch} className="rounded-2xl bg-white text-black px-6 py-3 font-semibold">Connect Wallet</button>
+              <a href="#security" className="rounded-2xl border border-white/15 px-6 py-3 text-white/90 hover:bg-white/5">Security</a>
+            </div>
+          </div>
+          <WalletPreview />
+        </div>
+      </section>
+
+      <Chains />
+      <Security />
+      <FAQ />
+      <Footer />
+
+      <ConnectModal open={modalOpen} onClose={() => setModalOpen(false)} />
+    </div>
+  );
+}
